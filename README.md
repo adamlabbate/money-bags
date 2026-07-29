@@ -2,7 +2,7 @@
 
 A savings-themed catch game, built as a single self-contained HTML file — no build step, no dependencies. Clone it, open it, play it.
 
-**[Play it here](money_bags/savings-catch-game.html)** (or enable GitHub Pages on this repo for a live link)
+**[Play it live](https://adamlabbate.github.io/money-bags/)** or open [savings-catch-game.html](savings-catch-game.html) directly.
 
 ## How to play
 
@@ -29,7 +29,7 @@ Plain HTML, CSS, and vanilla JavaScript (canvas 2D rendering). No frameworks, no
 ## Run it locally
 
 ```bash
-open money_bags/savings-catch-game.html
+open savings-catch-game.html
 ```
 
 Or just double-click the file in Finder/Explorer.
