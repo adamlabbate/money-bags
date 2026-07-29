@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Savings Catch — Reach Your Goal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pine-dark:   #10231d;
+    --pine:        #16352b;
+    --pine-light:  #204a3b;
+    --brass:       #d9a64b;
+    --brass-bright:#f0c268;
+    --copper:      #b5652d;
+    --cream:       #f2ead3;
+    --cream-dim:   #cdc3a3;
+    --good:        #6fae7e;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1d4636 0%, transparent 60%),
+      var(--pine-dark);
+    color:var(--cream);
+    font-family:'Inter', system-ui, sans-serif;
+    display:flex; align-items:flex-start; justify-content:center;
+    overflow-y:auto;
+  }
+
+  #stage{
+    width:min(96vw, 940px);
+    padding:32px 14px 40px;
+  }
+
+  .brand{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:0 4px 14px;
+    margin-top:4px;
+  }
+  .brand h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:clamp(22px, 3.4vw, 32px);
+    letter-spacing:0.01em;
+    margin:0;
+    color:var(--cream);
+  }
+  .brand h1 span{ color:var(--brass-bright); font-style:italic; font-weight:600;}
+  .brand small{
+    font-family:'JetBrains Mono', monospace;
+    color:var(--cream-dim);
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
+
+  /* ---- Ledger HUD ---- */
+  #hud{
+    position:relative;
+    background:linear-gradient(180deg, var(--pine-light), var(--pine));
+    border:1px solid #3a6552;
+    border-bottom:3px solid var(--brass);
+    border-radius:10px 10px 4px 4px;
+    padding:14px 18px 12px;
+    margin-bottom:10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  #hud::before{
+    content:"";
+    position:absolute; left:18px; right:18px; top:0; height:1px;
+    background:repeating-linear-gradient(90deg, var(--brass) 0 6px, transparent 6px 12px);
+    opacity:0.5;
+  }
+  .hud-row{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+    flex-wrap:wrap;
+  }
+  .ledger-field{ min-width:120px; }
+  .ledger-label{
+    font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--cream-dim); margin-bottom:2px; font-weight:500;
+  }
+  .ledger-value{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:clamp(20px, 3vw, 28px);
+    color:var(--brass-bright);
+    font-variant-numeric: tabular-nums;
+  }
+  .ledger-value.total{ color:var(--cream); }
+  .ledger-value.total.bump{ animation: bump 0.32s ease-out; }
+  @keyframes bump{
+    0%{ color:var(--good); transform:scale(1.14); }
+    100%{ color:var(--cream); transform:scale(1); }
+  }
+
+  #progressTrack{
+    margin-top:10px;
+    height:14px;
+    border-radius:7px;
+    background:#0c1e18;
+    border:1px solid #3a6552;
+    overflow:hidden;
+    position:relative;
+  }
+  #progressFill{
+    height:100%; width:0%;
+    background:linear-gradient(90deg, var(--copper), var(--brass) 55%, var(--brass-bright));
+    border-radius:7px 0 0 7px;
+    transition:width 0.25s ease-out;
+    position:relative;
+  }
+  #progressFill::after{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 9px);
+  }
+  #progressPct{
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--cream-dim);
+  }
+
+  /* ---- Canvas frame ---- */
+  #canvasFrame{
+    position:relative;
+    border:1px solid #3a6552;
+    border-radius:6px;
+    padding:6px;
+    background:linear-gradient(180deg, var(--pine-light), var(--pine-dark));
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #canvasFrame::before{
+    content:""; position:absolute; inset:0; border-radius:6px;
+    border:1px solid rgba(217,166,75,0.35); pointer-events:none;
+  }
+  canvas{
+    display:block; width:100%; height:auto;
+    border-radius:3px;
+    background:#eddca0;
+  }
+
+  .hint{
+    text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--cream-dim);
+    letter-spacing:0.04em;
+    margin-top:9px;
+  }
+  .hint kbd{
+    background:var(--pine-light); border:1px solid #3a6552; border-bottom-width:2px;
+    border-radius:4px; padding:1px 6px; color:var(--brass-bright); font-family:inherit;
+  }
+
+  /* ---- Overlays ---- */
+  .overlay{
+    position:absolute; inset:6px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(16,35,29,0.82);
+    backdrop-filter:blur(2px);
+    border-radius:4px;
+  }
+  .overlay.hidden{ display:none; }
+  .card{
+    width:min(88%, 380px);
+    background:linear-gradient(180deg, var(--pine-light), var(--pine));
+    border:1px solid var(--brass);
+    border-radius:10px;
+    padding:26px 26px 22px;
+    text-align:center;
+    box-shadow:0 14px 40px rgba(0,0,0,0.5);
+  }
+  .card .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--brass-bright); margin-bottom:6px;
+  }
+  .card h2{
+    font-family:'Fraunces', serif; font-weight:700;
+    font-size:clamp(24px,4vw,30px);
+    margin:0 0 6px;
+    color:var(--cream);
+  }
+  .card p.sub{
+    color:var(--cream-dim); font-size:13.5px; margin:0 0 18px; line-height:1.5;
+  }
+  .theme-label{
+    font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--cream-dim); margin-bottom:8px;
+  }
+  .theme-options{
+    display:flex; gap:10px; justify-content:center; margin-bottom:20px;
+  }
+  .theme-opt{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-family:'Inter', sans-serif; font-size:11.5px; font-weight:500;
+    color:var(--cream-dim);
+    background:#0c1e18; border:1px solid #3a6552; border-radius:8px;
+    padding:10px 16px; cursor:pointer;
+    transition:border-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
+  }
+  .theme-opt .theme-emoji{ font-size:22px; }
+  .theme-opt:hover{ border-color:var(--brass); }
+  .theme-opt:active{ transform:translateY(1px); }
+  .theme-opt.selected{
+    border-color:var(--brass); color:var(--cream);
+    box-shadow:0 0 0 1px var(--brass) inset;
+  }
+  .theme-opt:focus-visible{ outline:2px solid var(--brass-bright); outline-offset:2px; }
+  .field-row{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin-bottom:20px;
+  }
+  .field-row label{ font-size:12.5px; color:var(--cream-dim); }
+  #goalInput{
+    font-family:'JetBrains Mono', monospace; font-size:17px; font-weight:700;
+    width:110px; text-align:center;
+    background:#0c1e18; color:var(--brass-bright);
+    border:1px solid #3a6552; border-radius:6px; padding:8px 6px;
+  }
+  #goalInput:focus{ outline:2px solid var(--brass); outline-offset:1px; }
+
+  button.primary{
+    font-family:'Inter', sans-serif; font-weight:700; font-size:14.5px;
+    letter-spacing:0.02em;
+    background:linear-gradient(180deg, var(--brass-bright), var(--brass));
+    color:#1a1204;
+    border:none; border-radius:7px;
+    padding:11px 28px;
+    cursor:pointer;
+    box-shadow:0 3px 0 var(--copper), 0 6px 14px rgba(0,0,0,0.35);
+    transition:transform 0.08s ease;
+  }
+  button.primary:hover{ filter:brightness(1.05); }
+  button.primary:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--copper); }
+  button.primary:focus-visible{ outline:2px solid var(--cream); outline-offset:3px; }
+
+  .stats-row{
+    display:flex; justify-content:center; gap:22px; margin:16px 0 22px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .stats-row div{ text-align:center; }
+  .stats-row .n{ font-size:19px; font-weight:700; color:var(--brass-bright); display:block; }
+  .stats-row .l{ font-size:9.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--cream-dim); }
+
+  @media (prefers-reduced-motion: reduce){
+    .ledger-value.total.bump{ animation:none; }
+    button.primary{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="brand">
+    <h1>Savings <span>Catch</span></h1>
+    <small id="subtitleText">Passbook Edition</small>
+  </div>
+
+  <div id="hud">
+    <div class="hud-row">
+      <div class="ledger-field">
+        <div class="ledger-label">Goal</div>
+        <div class="ledger-value" id="goalDisplay">$10.00</div>
+      </div>
+      <div class="ledger-field" style="text-align:right;">
+        <div class="ledger-label">Saved so far</div>
+        <div class="ledger-value total" id="totalDisplay">$0.00</div>
+      </div>
+    </div>
+    <div id="progressTrack">
+      <div id="progressFill"></div>
+      <div id="progressPct">0%</div>
+    </div>
+  </div>
+
+  <div id="canvasFrame">
+    <canvas id="gameCanvas" width="900" height="540"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <div class="card">
+        <div class="eyebrow" id="startEyebrow">New Account</div>
+        <h2 id="startTitle">Set your goal</h2>
+        <p class="sub" id="startSub">Catch falling coins with your piggy bank before they hit the counter. Reach your savings goal to win.</p>
+
+        <div class="theme-label">Choose your saver</div>
+        <div class="theme-options" id="themeOptions">
+          <button type="button" class="theme-opt selected" data-theme="vault">
+            <span class="theme-emoji">🐷</span><span>Piggy Bank</span>
+          </button>
+          <button type="button" class="theme-opt" data-theme="garden">
+            <span class="theme-emoji">🌱</span><span>Money Tree</span>
+          </button>
+        </div>
+
+        <div class="field-row">
+          <label for="goalInput">Goal ($)</label>
+          <input type="number" id="goalInput" value="10.00" min="1" max="500" step="0.50">
+        </div>
+        <button class="primary" id="startBtn">Start Saving</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="winOverlay">
+      <div class="card">
+        <div class="eyebrow" id="winEyebrow">Goal Reached</div>
+        <h2 id="winTitle">You made it! 🐷</h2>
+        <p class="sub" id="winMessage">You saved your goal amount.</p>
+        <div class="stats-row">
+          <div><span class="n" id="statTotal">$0.00</span><span class="l">Saved</span></div>
+          <div><span class="n" id="statCoins">0</span><span class="l">Coins</span></div>
+          <div><span class="n" id="statTime">0:00</span><span class="l">Time</span></div>
+        </div>
+        <button class="primary" id="playAgainBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">
+    <kbd>&larr;</kbd> <kbd>&rarr;</kbd> or <kbd>A</kbd> <kbd>D</kbd> <span id="hintSuffix">to move the piggy bank</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const goalDisplay = document.getElementById('goalDisplay');
+  const totalDisplay = document.getElementById('totalDisplay');
+  const progressFill = document.getElementById('progressFill');
+  const progressPct = document.getElementById('progressPct');
+  const startOverlay = document.getElementById('startOverlay');
+  const winOverlay = document.getElementById('winOverlay');
+  const goalInput = document.getElementById('goalInput');
+  const startBtn = document.getElementById('startBtn');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+  const statTotal = document.getElementById('statTotal');
+  const statCoins = document.getElementById('statCoins');
+  const statTime = document.getElementById('statTime');
+  const winMessage = document.getElementById('winMessage');
+  const subtitleText = document.getElementById('subtitleText');
+  const startEyebrowEl = document.getElementById('startEyebrow');
+  const startTitleEl = document.getElementById('startTitle');
+  const startSubEl = document.getElementById('startSub');
+  const hintSuffixEl = document.getElementById('hintSuffix');
+  const winEyebrowEl = document.getElementById('winEyebrow');
+  const winTitleEl = document.getElementById('winTitle');
+  const themeOptions = document.querySelectorAll('.theme-opt');
+
+  const THEME_COPY = {
+    vault: {
+      subtitle: 'Passbook Edition',
+      startEyebrow: 'New Account',
+      startTitle: 'Set your goal',
+      startSub: 'Catch falling coins with your piggy bank before they hit the counter. Reach your savings goal to win.',
+      hint: 'to move the piggy bank',
+      winEyebrow: 'Goal Reached',
+      winTitle: 'You made it! 🐷',
+      winMessage: (total, goal) => `You saved ${fmt(total)} toward your ${fmt(goal)} goal — nice work!`
+    },
+    garden: {
+      subtitle: 'Money Tree Edition',
+      startEyebrow: 'New Planting',
+      startTitle: 'Plant your goal',
+      startSub: 'Catch falling coins in your pot before they hit the soil. Every coin helps your money tree grow — reach your goal to see it bloom.',
+      hint: 'to move the money tree',
+      winEyebrow: 'Full Bloom',
+      winTitle: 'Your tree bloomed! 🌸',
+      winMessage: (total, goal) => `Your money tree grew to ${fmt(total)} of your ${fmt(goal)} goal — nice work!`
+    }
+  };
+
+  let currentTheme = 'vault';
+
+  function applyThemeCopy(theme){
+    const c = THEME_COPY[theme];
+    subtitleText.textContent = c.subtitle;
+    startEyebrowEl.textContent = c.startEyebrow;
+    startTitleEl.textContent = c.startTitle;
+    startSubEl.textContent = c.startSub;
+    hintSuffixEl.textContent = c.hint;
+  }
+
+  themeOptions.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      themeOptions.forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      currentTheme = btn.dataset.theme;
+      applyThemeCopy(currentTheme);
+    });
+  });
+
+  const COIN_TYPES = [
+    { name:'penny',   value:1,   radius:14, weight:34, speed:1.00, face:'#c5793f', edge:'#8a4d24', ring:'#e0a163', label:'1¢' },
+    { name:'nickel',  value:5,   radius:17, weight:24, speed:1.10, face:'#b9bcc0', edge:'#7d7f83', ring:'#d8dadd', label:'5¢' },
+    { name:'dime',    value:10,  radius:12, weight:20, speed:1.28, face:'#c7cad0', edge:'#8d9096', ring:'#e6e8ec', label:'10¢' },
+    { name:'quarter', value:25,  radius:19, weight:15, speed:1.42, face:'#aeb2b8', edge:'#787c82', ring:'#d2d5da', label:'25¢' },
+    { name:'dollar',  value:100, radius:21, weight:7,  speed:1.55, face:'#d9a64b', edge:'#a5762a', ring:'#f0cd78', label:'$1' },
+  ];
+  const TOTAL_WEIGHT = COIN_TYPES.reduce((s,c)=>s+c.weight,0);
+
+  function pickCoinType(){
+    let r = Math.random() * TOTAL_WEIGHT;
+    for(const t of COIN_TYPES){
+      if(r < t.weight) return t;
+      r -= t.weight;
+    }
+    return COIN_TYPES[0];
+  }
+
+  function fmt(cents){
+    return '$' + (cents/100).toFixed(2);
+  }
+
+  function hexToRgb(hex){
+    const n = parseInt(hex.slice(1), 16);
+    return [ (n>>16)&255, (n>>8)&255, n&255 ];
+  }
+  function lerpColor(a, b, t){
+    const ca = hexToRgb(a), cb = hexToRgb(b);
+    const r = Math.round(ca[0] + (cb[0]-ca[0])*t);
+    const g = Math.round(ca[1] + (cb[1]-ca[1])*t);
+    const bl = Math.round(ca[2] + (cb[2]-ca[2])*t);
+    return `rgb(${r},${g},${bl})`;
+  }
+
+  const player = {
+    w:76, h:54,
+    x: W/2 - 38,
+    y: H - 66,
+    speed: 8.6,
+    squash: 0
+  };
+
+  let keys = { left:false, right:false };
+  window.addEventListener('keydown', (e)=>{
+    if(['ArrowLeft','ArrowRight','a','A','d','D'].includes(e.key)) e.preventDefault();
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  }, { passive:false });
+  window.addEventListener('keyup', (e)=>{
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  });
+
+  let coins = [];
+  let popups = [];
+  let goalCents = 1000;
+  let totalCents = 0;
+  let coinsCaught = 0;
+  let spawnTimer = 0;
+  let nextSpawnIn = 45;
+  let elapsedFrames = 0;
+  let startTime = 0;
+  let running = false;
+  let lastTs = null;
+  let rafId = null;
+
+  function resetGame(goalDollars){
+    goalCents = Math.round(goalDollars * 100);
+    totalCents = 0;
+    coinsCaught = 0;
+    coins = [];
+    popups = [];
+    spawnTimer = 0;
+    nextSpawnIn = 45;
+    elapsedFrames = 0;
+    player.x = W/2 - player.w/2;
+    goalDisplay.textContent = fmt(goalCents);
+    totalDisplay.textContent = fmt(0);
+    progressFill.style.width = '0%';
+    progressPct.textContent = '0%';
+  }
+
+  function updateHud(bump){
+    totalDisplay.textContent = fmt(totalCents);
+    const pct = Math.min(100, (totalCents/goalCents)*100);
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = Math.floor(pct) + '%';
+    if(bump){
+      totalDisplay.classList.remove('bump');
+      void totalDisplay.offsetWidth;
+      totalDisplay.classList.add('bump');
+    }
+  }
+
+  function spawnCoin(){
+    const t = pickCoinType();
+    const r = t.radius;
+    coins.push({
+      type:t,
+      x: r + Math.random()*(W - r*2),
+      y: -r - 4,
+      vy: 0
+    });
+  }
+
+  function drawBackgroundVault(){
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#fcefd1');
+    grad.addColorStop(1, '#f0cd78');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    // faint ledger rule lines across the sky
+    ctx.strokeStyle = 'rgba(181,101,45,0.10)';
+    ctx.lineWidth = 1;
+    for(let y = 40; y < H-70; y += 46){
+      ctx.beginPath();
+      ctx.moveTo(0,y);
+      ctx.lineTo(W,y);
+      ctx.stroke();
+    }
+
+    // counter / ground
+    const groundY = H - 40;
+    const gGrad = ctx.createLinearGradient(0, groundY, 0, H);
+    gGrad.addColorStop(0, '#6b4324');
+    gGrad.addColorStop(1, '#432711');
+    ctx.fillStyle = gGrad;
+    ctx.fillRect(0, groundY, W, H-groundY);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0, groundY, W, 4);
+
+    ctx.fillStyle = 'rgba(217,166,75,0.55)';
+    for(let x = 20; x < W; x += 44){
+      ctx.beginPath();
+      ctx.arc(x, groundY + 20, 2.6, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawBackgroundGarden(){
+    // sky
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#bfe6f0');
+    grad.addColorStop(0.7, '#eaf6dc');
+    grad.addColorStop(1, '#f3e9b8');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    // sun with soft glow
+    const sunX = W*0.86, sunY = 64;
+    const glow = ctx.createRadialGradient(sunX,sunY,4, sunX,sunY,90);
+    glow.addColorStop(0, 'rgba(240,205,120,0.9)');
+    glow.addColorStop(1, 'rgba(240,205,120,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(sunX-90, sunY-90, 180, 180);
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 30, 0, Math.PI*2);
+    ctx.fillStyle = '#f7dd8e';
+    ctx.fill();
+
+    // drifting clouds
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    const cloudDrift = (elapsedFrames*0.06) % (W+160) - 80;
+    [ [cloudDrift, 90, 1], [cloudDrift+260, 150, 0.75], [cloudDrift-220, 60, 0.6] ].forEach(([cx,cy,s])=>{
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 34*s, 13*s, 0, 0, Math.PI*2);
+      ctx.ellipse(cx+22*s, cy-6*s, 22*s, 11*s, 0, 0, Math.PI*2);
+      ctx.ellipse(cx-24*s, cy-4*s, 20*s, 10*s, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // soil bed
+    const groundY = H - 40;
+    ctx.fillStyle = 'rgba(107,143,66,0.5)';
+    for(let x = 10; x < W; x += 26){
+      ctx.beginPath();
+      ctx.ellipse(x, groundY - 2, 8, 5, 0, 0, Math.PI);
+      ctx.fill();
+    }
+
+    const gGrad = ctx.createLinearGradient(0, groundY, 0, H);
+    gGrad.addColorStop(0, '#6b4a2f');
+    gGrad.addColorStop(1, '#3f2a19');
+    ctx.fillStyle = gGrad;
+    ctx.fillRect(0, groundY, W, H-groundY);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(0, groundY, W, 4);
+
+    // scattered pebbles / seeds in the soil
+    ctx.fillStyle = 'rgba(217,166,75,0.45)';
+    for(let x = 20; x < W; x += 50){
+      ctx.beginPath();
+      ctx.arc(x, groundY + 20, 2.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawCoin(c){
+    const t = c.type;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+
+    ctx.beginPath();
+    ctx.ellipse(0, t.radius*0.9, t.radius*0.85, t.radius*0.28, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(67,39,17,0.18)';
+    ctx.fill();
+
+    const grad = ctx.createRadialGradient(-t.radius*0.3,-t.radius*0.3,1, 0,0,t.radius);
+    grad.addColorStop(0, t.ring);
+    grad.addColorStop(0.7, t.face);
+    grad.addColorStop(1, t.edge);
+    ctx.beginPath();
+    ctx.arc(0,0,t.radius,0,Math.PI*2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = t.edge;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0,0,t.radius-4,0,Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = t.edge;
+    ctx.font = `700 ${t.radius*0.62}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.label, 0, 1);
+
+    ctx.restore();
+  }
+
+  function drawPlayerPiggy(){
+    const { x, y, w, h } = player;
+    const sq = player.squash;
+    ctx.save();
+    ctx.translate(x + w/2, y + h);
+    ctx.scale(1 + sq*0.06, 1 - sq*0.08);
+    ctx.translate(-(w/2), -h);
+
+    // shadow
+    ctx.beginPath();
+    ctx.ellipse(w/2, h+6, w*0.48, 7, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fill();
+
+    // legs
+    ctx.fillStyle = '#d98aa3';
+    [w*0.18, w*0.78].forEach(lx=>{
+      ctx.fillRect(lx-6, h-10, 12, 12);
+    });
+
+    // body
+    const bodyGrad = ctx.createLinearGradient(0,0,0,h);
+    bodyGrad.addColorStop(0, '#f3b8cd');
+    bodyGrad.addColorStop(1, '#e28aa8');
+    ctx.beginPath();
+    ctx.ellipse(w/2, h*0.52, w*0.5, h*0.46, 0, 0, Math.PI*2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#b96482';
+    ctx.stroke();
+
+    // ear
+    ctx.beginPath();
+    ctx.moveTo(w*0.22, h*0.14);
+    ctx.lineTo(w*0.32, -h*0.06);
+    ctx.lineTo(w*0.40, h*0.18);
+    ctx.closePath();
+    ctx.fillStyle = '#e28aa8';
+    ctx.fill();
+    ctx.stroke();
+
+    // snout
+    ctx.beginPath();
+    ctx.ellipse(w*0.82, h*0.52, w*0.15, h*0.16, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#f6c9da';
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#b96482';
+    ctx.beginPath(); ctx.ellipse(w*0.78, h*0.52, 2.4, 3.2, 0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(w*0.87, h*0.52, 2.4, 3.2, 0,0,Math.PI*2); ctx.fill();
+
+    // eye
+    ctx.fillStyle = '#4a2233';
+    ctx.beginPath(); ctx.arc(w*0.60, h*0.36, 2.6, 0, Math.PI*2); ctx.fill();
+
+    // coin slot
+    ctx.strokeStyle = '#8a3f57';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(w*0.42, h*0.14);
+    ctx.lineTo(w*0.56, h*0.10);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawPlayerPot(){
+    const { x, y, w, h } = player;
+    const sq = player.squash;
+    const growth = Math.min(1, totalCents / goalCents);
+    const sway = Math.sin(elapsedFrames*0.045) * (2 + sq*6) * (Math.PI/180);
+
+    ctx.save();
+    ctx.translate(x + w/2, y + h);
+    ctx.scale(1 + sq*0.07, 1 - sq*0.09);
+
+    // shadow
+    ctx.beginPath();
+    ctx.ellipse(0, 8, w*0.5, 7, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+
+    // terracotta pot (narrower base, wider rim)
+    const potH = h*0.62;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.30, -potH);
+    ctx.lineTo(w*0.30, -potH);
+    ctx.lineTo(w*0.40, 0);
+    ctx.lineTo(-w*0.40, 0);
+    ctx.closePath();
+    const potGrad = ctx.createLinearGradient(0,-potH,0,0);
+    potGrad.addColorStop(0, '#d9834f');
+    potGrad.addColorStop(1, '#b5602e');
+    ctx.fillStyle = potGrad;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#8a4322';
+    ctx.stroke();
+
+    // pot rim
+    ctx.beginPath();
+    ctx.ellipse(0, -potH, w*0.32, 6, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#e79a68';
+    ctx.fill();
+    ctx.strokeStyle = '#8a4322';
+    ctx.stroke();
+
+    // soil
+    ctx.beginPath();
+    ctx.ellipse(0, -potH, w*0.26, 4.2, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#3f2a19';
+    ctx.fill();
+
+    // --- plant, grows with savings progress ---
+    ctx.save();
+    ctx.translate(0, -potH);
+    ctx.rotate(sway);
+
+    const stemH = 12 + growth*76;
+    const budColorA = '#8fbf7a';
+    const budColorB = '#f0c268';
+
+    ctx.strokeStyle = '#4f8a52';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(sway*40, -stemH*0.55, 0, -stemH);
+    ctx.stroke();
+
+    const leafPairs = 1 + Math.floor(growth*4.2);
+    for(let i=1; i<=leafPairs; i++){
+      const t = i/(leafPairs+0.6);
+      const ly = -stemH*t;
+      const lx = Math.sin(sway*2)*40*t;
+      [-1,1].forEach(dir=>{
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(dir * (0.7 + t*0.15) + sway);
+        ctx.beginPath();
+        ctx.ellipse(dir*11, 0, 11, 5.5, 0, 0, Math.PI*2);
+        ctx.fillStyle = i%2===0 ? '#6fae7e' : '#5a9a63';
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // blossoms bloom in as the goal gets close, turning brass-gold at 100%
+    if(growth > 0.55){
+      const bloomT = (growth - 0.55) / 0.45;
+      const bloomColor = lerpColor(budColorA, budColorB, Math.min(1,bloomT));
+      const count = 3 + Math.floor(bloomT*3);
+      for(let i=0;i<count;i++){
+        const t = i/(count-1||1);
+        const by = -stemH * (0.55 + 0.45*t);
+        const bx = Math.sin(t*6 + sway*3) * 26 * t;
+        ctx.beginPath();
+        ctx.arc(bx, by, 5 + bloomT*2.4, 0, Math.PI*2);
+        ctx.fillStyle = bloomColor;
+        ctx.fill();
+        if(bloomT > 0.85){
+          ctx.beginPath();
+          ctx.arc(bx, by, 1.6, 0, Math.PI*2);
+          ctx.fillStyle = '#7a4d17';
+          ctx.fill();
+        }
+      }
+    }
+
+    ctx.restore(); // plant
+    ctx.restore(); // pot/base transform
+  }
+
+  function drawPopups(){
+    popups.forEach(p=>{
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = "700 16px 'JetBrains Mono', monospace";
+      ctx.fillStyle = p.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    });
+  }
+
+  function rectCircleOverlap(px, py, pw, ph, cx, cy, cr){
+    const closestX = Math.max(px, Math.min(cx, px+pw));
+    const closestY = Math.max(py, Math.min(cy, py+ph));
+    const dx = cx - closestX, dy = cy - closestY;
+    return (dx*dx + dy*dy) <= cr*cr;
+  }
+
+  function update(dt){
+    elapsedFrames += dt;
+
+    if(keys.left) player.x -= player.speed * dt;
+    if(keys.right) player.x += player.speed * dt;
+    player.x = Math.max(6, Math.min(W - player.w - 6, player.x));
+    if(player.squash > 0) player.squash = Math.max(0, player.squash - 0.08*dt);
+
+    const difficulty = Math.min(1.8, 1 + elapsedFrames/2400);
+
+    spawnTimer += dt;
+    if(spawnTimer >= nextSpawnIn){
+      spawnTimer = 0;
+      nextSpawnIn = (34 + Math.random()*28) / difficulty;
+      spawnCoin();
+    }
+
+    for(let i = coins.length - 1; i >= 0; i--){
+      const c = coins[i];
+      c.vy = (1.6 + c.type.speed) * difficulty;
+      c.y += c.vy * dt;
+
+      const catchBox = currentTheme === 'garden'
+        ? { oy: player.h*0.32, oh: player.h*0.68 }
+        : { oy: 0, oh: player.h*0.62 };
+      const caught = rectCircleOverlap(
+        player.x, player.y + catchBox.oy, player.w, catchBox.oh,
+        c.x, c.y, c.type.radius*0.85
+      );
+
+      if(caught){
+        totalCents += c.type.value;
+        coinsCaught++;
+        player.squash = 1;
+        popups.push({
+          x:c.x, y:player.y - 6, text:'+'+fmt(c.type.value),
+          life:1, maxLife:1, color: c.type.value >= 100 ? '#d9a64b' : '#245c3f'
+        });
+        coins.splice(i,1);
+        updateHud(true);
+        if(totalCents >= goalCents){
+          winGame();
+          return;
+        }
+        continue;
+      }
+
+      if(c.y - c.type.radius > H){
+        coins.splice(i,1);
+      }
+    }
+
+    for(let i = popups.length - 1; i >= 0; i--){
+      const p = popups[i];
+      p.y -= 0.7 * dt;
+      p.life -= 0.02 * dt;
+      if(p.life <= 0) popups.splice(i,1);
+    }
+  }
+
+  function render(){
+    if(currentTheme === 'garden'){
+      drawBackgroundGarden();
+      coins.forEach(drawCoin);
+      drawPlayerPot();
+    } else {
+      drawBackgroundVault();
+      coins.forEach(drawCoin);
+      drawPlayerPiggy();
+    }
+    drawPopups();
+  }
+
+  function loop(ts){
+    if(!running) return;
+    if(lastTs === null) lastTs = ts;
+    const dt = Math.min(2.5, (ts - lastTs) / (1000/60));
+    lastTs = ts;
+
+    update(dt);
+    if(!running) { render(); return; }
+    render();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function winGame(){
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    const seconds = Math.max(0, Math.round((performance.now() - startTime)/1000));
+    const mm = Math.floor(seconds/60);
+    const ss = String(seconds%60).padStart(2,'0');
+    statTotal.textContent = fmt(totalCents);
+    statCoins.textContent = coinsCaught;
+    statTime.textContent = mm + ':' + ss;
+    const c = THEME_COPY[currentTheme];
+    winEyebrowEl.textContent = c.winEyebrow;
+    winTitleEl.textContent = c.winTitle;
+    winMessage.textContent = c.winMessage(totalCents, goalCents);
+    winOverlay.classList.remove('hidden');
+    render();
+  }
+
+  function startGame(){
+    let goalDollars = parseFloat(goalInput.value);
+    if(!isFinite(goalDollars) || goalDollars <= 0) goalDollars = 10;
+    goalDollars = Math.max(1, Math.min(500, goalDollars));
+    resetGame(goalDollars);
+    startOverlay.classList.add('hidden');
+    winOverlay.classList.add('hidden');
+    running = true;
+    lastTs = null;
+    startTime = performance.now();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+  playAgainBtn.addEventListener('click', ()=>{
+    winOverlay.classList.add('hidden');
+    startOverlay.classList.remove('hidden');
+  });
+  goalInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') startGame();
+  });
+
+  // initial idle render behind the start overlay
+  applyThemeCopy(currentTheme);
+  resetGame(parseFloat(goalInput.value) || 10);
+  render();
+})();
+</script>
+</body>
+</html>
