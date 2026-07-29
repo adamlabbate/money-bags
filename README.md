@@ -1,4 +1,4 @@
-# Savings Catch 🐷🌱
+# Money Bags 💰
 
 A savings-themed catch game, built as a single self-contained HTML file — no build step, no dependencies. Clone it, open it, play it.
 
